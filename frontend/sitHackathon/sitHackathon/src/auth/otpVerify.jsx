@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { authApi } from '../lib/api';
+import { authApi, authStorage } from '../lib/api';
 
 export default function OtpVerifyPage() {
   const navigate = useNavigate();
@@ -127,17 +127,10 @@ export default function OtpVerifyPage() {
 
       const accessToken = authData?.access_token || authData?.accessToken;
       const refreshToken = authData?.refresh_token || authData?.refreshToken;
-
-      if (accessToken) {
-        localStorage.setItem('accessToken', accessToken);
-      }
-
-      if (refreshToken) {
-        localStorage.setItem('refreshToken', refreshToken);
-      }
+      authStorage.setTokens(accessToken, refreshToken);
 
       setSuccessMessage(loginMode === 'signin' ? 'Login successful.' : 'Signup successful.');
-      navigate('/dashboard');
+      navigate('/onboarding/aadhaar');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to connect to server. Please try again.');
     } finally {
@@ -273,9 +266,16 @@ export default function OtpVerifyPage() {
             Didn't receive the code?{' '}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 setError('');
-                setSuccessMessage('OTP resent successfully!');
+                setSuccessMessage('');
+
+                try {
+                  await authApi.sendOtp({ phone: phoneNo.trim() });
+                  setSuccessMessage('OTP resent successfully!');
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : 'Failed to resend OTP.');
+                }
               }}
               style={{
                 background: 'none',

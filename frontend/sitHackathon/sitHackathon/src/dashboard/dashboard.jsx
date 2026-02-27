@@ -1,16 +1,122 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMaterialIcons } from '../lib/hooks/useMaterialIcons';
+import { authStorage, businessesApi, invoicesApi, offersApi } from '../lib/api';
 
 export default function Dashboard() {
   useMaterialIcons();
   const navigate = useNavigate();
+  const [businessProfile, setBusinessProfile] = useState(null);
+  const [isBusinessLoading, setIsBusinessLoading] = useState(true);
+  const [businessError, setBusinessError] = useState('');
+  const [creditScore, setCreditScore] = useState(null);
+  const [pendingInvoices, setPendingInvoices] = useState([]);
+  const [isRecalculatingScore, setIsRecalculatingScore] = useState(false);
+  const [isGeneratingOffer, setIsGeneratingOffer] = useState(false);
+  const [offerFeedback, setOfferFeedback] = useState('');
   const navItems = [
     { label: 'Home', icon: 'home', path: '/dashboard' },
-    { label: 'Invoices', icon: 'description', path: '/emiSchedule' },
+    { label: 'Invoices', icon: 'description', path: '/invoices' },
     { label: 'Loans', icon: 'credit_card', path: '/loan' },
     { label: 'Profile', icon: 'person', path: '/dashboard' },
   ];
+
+  const loadBusiness = async () => {
+    setIsBusinessLoading(true);
+    setBusinessError('');
+
+    try {
+      const [profileData, scoreData, invoiceData] = await Promise.all([
+        businessesApi.getMyBusiness(),
+        businessesApi.getCreditScore(),
+        invoicesApi.listMyInvoices('UNPAID'),
+      ]);
+
+      setBusinessProfile(profileData);
+      setCreditScore(scoreData);
+      setPendingInvoices(invoiceData || []);
+    } catch (err) {
+      const hasToken = authStorage.getAccessToken();
+      if (!hasToken) {
+        navigate('/login');
+        return;
+      }
+
+      setBusinessError(err instanceof Error ? err.message : 'Failed to load business profile.');
+    } finally {
+      setIsBusinessLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBusiness();
+  }, [navigate]);
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(value || 0);
+
+  const getStatusStyles = (status) => {
+    if (status === 'UNPAID') {
+      return { background: '#e5e7eb', color: '#374151', label: 'Unpaid' };
+    }
+    if (status === 'FINANCED') {
+      return { background: '#d1fae5', color: '#065f46', label: 'Financed' };
+    }
+    if (status === 'DEFAULTED') {
+      return { background: '#fee2e2', color: '#991b1b', label: 'Defaulted' };
+    }
+
+    return {
+      background: '#e0e7ff',
+      color: '#3730a3',
+      label: (status || 'UNKNOWN').replaceAll('_', ' '),
+    };
+  };
+
+  const handleGenerateOffer = async () => {
+    if (!pendingInvoices.length) {
+      setOfferFeedback('No unpaid invoice available to generate offer.');
+      return;
+    }
+
+    setIsGeneratingOffer(true);
+    setOfferFeedback('');
+
+    try {
+      const generated = await offersApi.generate({ invoice_id: pendingInvoices[0].id });
+      localStorage.setItem('selectedInvoiceId', pendingInvoices[0].id);
+
+      const generatedOfferId = generated?.offer_id || generated?.id;
+      if (generatedOfferId) {
+        localStorage.setItem('selectedOfferId', generatedOfferId);
+      }
+
+      setOfferFeedback(`Offer generated for ${pendingInvoices[0].invoice_number || pendingInvoices[0].id}.`);
+    } catch (err) {
+      setOfferFeedback(err instanceof Error ? err.message : 'Failed to generate offer.');
+    } finally {
+      setIsGeneratingOffer(false);
+    }
+  };
+
+  const handleRecalculateCreditScore = async () => {
+    setIsRecalculatingScore(true);
+    setBusinessError('');
+
+    try {
+      const updatedScore = await businessesApi.recalculateCreditScore();
+      setCreditScore(updatedScore);
+    } catch (err) {
+      setBusinessError(err instanceof Error ? err.message : 'Failed to recalculate credit score.');
+    } finally {
+      setIsRecalculatingScore(false);
+    }
+  };
 
   return (
     <div
@@ -39,9 +145,20 @@ export default function Dashboard() {
             marginBottom: 24,
           }}
         >
-          <h2 style={{ fontSize: 20, fontWeight: 600 }}>
-            Financing Hub
-          </h2>
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+              {isBusinessLoading
+                ? 'Loading profile...'
+                : businessProfile?.gst_number
+                  ? 'Financing Hub'
+                  : 'Financing Hub'}
+            </h2>
+            {businessProfile?.gst_number && (
+              <p style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+                GST: {businessProfile.gst_number}
+              </p>
+            )}
+          </div>
 
           <div style={{ display: 'flex', gap: 14 }}>
             <span className="material-symbols-outlined" style={{ fontSize: 20, lineHeight: 1, fontVariationSettings: "'wght' 100" }}>
@@ -52,6 +169,12 @@ export default function Dashboard() {
             </span>
           </div>
         </div>
+
+        {businessError && (
+          <p style={{ color: '#dc2626', fontSize: 13, marginTop: -8, marginBottom: 14 }}>
+            {businessError}
+          </p>
+        )}
 
         {/* Credit Summary Card */}
         <div
@@ -65,15 +188,15 @@ export default function Dashboard() {
           }}
         >
           <p style={{ opacity: 0.8, fontSize: 13 }}>
-            Total Credit Limit
+            Final Credit Score
           </p>
 
           <h1 style={{ fontSize: 28, margin: '6px 0 18px 0' }}>
-            ₹25,00,000
+            {creditScore?.final_score ?? '--'}
           </h1>
 
           <p style={{ opacity: 0.8, fontSize: 12 }}>
-            AVAILABLE FOR DISCOUNTING
+            RISK GRADE
           </p>
 
           <h2
@@ -84,10 +207,32 @@ export default function Dashboard() {
               marginBottom: 18,
             }}
           >
-            ₹18,45,000
+            {creditScore?.risk_grade || '--'}
           </h2>
 
           <button
+            onClick={handleRecalculateCreditScore}
+            disabled={isRecalculatingScore}
+            style={{
+              width: '100%',
+              padding: 10,
+              background: '#334155',
+              border: 'none',
+              borderRadius: 10,
+              fontWeight: 600,
+              fontSize: 12,
+              cursor: isRecalculatingScore ? 'not-allowed' : 'pointer',
+              opacity: isRecalculatingScore ? 0.85 : 1,
+              color: '#ffffff',
+              marginBottom: 10,
+            }}
+          >
+            {isRecalculatingScore ? 'Recalculating...' : 'Recalculate Score'}
+          </button>
+
+          <button
+            onClick={handleGenerateOffer}
+            disabled={isGeneratingOffer}
             style={{
               width: '100%',
               padding: 14,
@@ -96,12 +241,19 @@ export default function Dashboard() {
               borderRadius: 14,
               fontWeight: 600,
               fontSize: 14,
-              cursor: 'pointer',
+              cursor: isGeneratingOffer ? 'not-allowed' : 'pointer',
+              opacity: isGeneratingOffer ? 0.85 : 1,
               color: '#ffffff',
             }}
           >
-            + Discount New Invoice
+            {isGeneratingOffer ? 'Generating Offer...' : '+ Discount New Invoice'}
           </button>
+
+          {offerFeedback && (
+            <p style={{ marginTop: 10, fontSize: 12, color: '#d1fae5' }}>
+              {offerFeedback}
+            </p>
+          )}
         </div>
 
         {/* Pending Invoices */}
@@ -116,24 +268,54 @@ export default function Dashboard() {
             <h3 style={{ fontSize: 18, fontWeight: 600 }}>
               Pending Invoices
             </h3>
-            <span style={{ fontSize: 15, color: '#6b7280', cursor: 'pointer', ':hover': { color: '#111827' } }}>
+            <span
+              onClick={() => navigate('/invoices')}
+              style={{ fontSize: 15, color: '#6b7280', cursor: 'pointer', ':hover': { color: '#111827' } }}
+            >
               View All
             </span>
           </div>
 
-          {[
-            { id: 'INV-8829', date: 'Oct 12, 2023', amount: '₹1,24,500', status: 'Unpaid' },
-            { id: 'INV-9012', date: 'Oct 15, 2023', amount: '₹45,000', status: 'Financed' },
-            { id: 'INV-7734', date: 'Sep 28, 2023', amount: '₹89,200', status: 'Defaulted' },
-          ].map((invoice, index) => (
+          {pendingInvoices.length === 0 && !isBusinessLoading && (
             <div
-              key={index}
               style={{
                 background: '#ffffff',
                 borderRadius: 16,
                 padding: 16,
                 marginBottom: 14,
                 boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
+                color: '#6b7280',
+                fontSize: 14,
+              }}
+            >
+              No pending invoices found.
+            </div>
+          )}
+
+          {pendingInvoices.map((invoice, index) => {
+            const statusStyles = getStatusStyles(invoice.status);
+            const dueDate = invoice?.due_date
+              ? new Date(invoice.due_date).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })
+              : '-';
+
+            return (
+            <div
+              key={index}
+              onClick={() => {
+                localStorage.setItem('selectedInvoiceId', invoice.id);
+                navigate('/invoices');
+              }}
+              style={{
+                background: '#ffffff',
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 14,
+                boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
+                cursor: 'pointer',
               }}
             >
               <div
@@ -143,8 +325,8 @@ export default function Dashboard() {
                   marginBottom: 8,
                 }}
               >
-                <strong>{invoice.id}</strong>
-                <strong>{invoice.amount}</strong>
+                <strong>{invoice.invoice_number || invoice.id}</strong>
+                <strong>{formatCurrency(invoice.amount)}</strong>
               </div>
 
               <div
@@ -155,7 +337,7 @@ export default function Dashboard() {
                 }}
               >
                 <span style={{ fontSize: 13, color: '#6b7280' }}>
-                  {invoice.date}
+                  {dueDate}
                 </span>
 
                 <span
@@ -164,25 +346,16 @@ export default function Dashboard() {
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 500,
-                    background:
-                      invoice.status === 'Unpaid'
-                        ? '#e5e7eb'
-                        : invoice.status === 'Financed'
-                        ? '#d1fae5'
-                        : '#fee2e2',
-                    color:
-                      invoice.status === 'Unpaid'
-                        ? '#374151'
-                        : invoice.status === 'Financed'
-                        ? '#065f46'
-                        : '#991b1b',
+                    background: statusStyles.background,
+                    color: statusStyles.color,
                   }}
                 >
-                  {invoice.status}
+                  {statusStyles.label}
                 </span>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Active Loans */}
