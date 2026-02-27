@@ -1,6 +1,14 @@
 'use client';
-
+import { useNavigate } from 'react-router-dom';
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const navItems = [
+    { label: 'Home', icon: 'home', path: '/dashboard' },
+    { label: 'Invoices', icon: 'description', path: '/emiSchedule' },
+    { label: 'Loans', icon: 'credit_card', path: '/loan' },
+    { label: 'Profile', icon: 'person', path: '/dashboard' },
+  ];
+
   return (
     <div
       style={{
@@ -33,8 +41,12 @@ export default function Dashboard() {
           </h2>
 
           <div style={{ display: 'flex', gap: 14 }}>
-            <span style={{ fontSize: 18 }}>🔔</span>
-            <span style={{ fontSize: 18 }}>ℹ️</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 20, lineHeight: 1, fontVariationSettings: "'wght' 100" }}>
+              notifications
+            </span>
+            <span className="material-symbols-outlined" style={{ fontSize: 20, lineHeight: 1, fontVariationSettings: "'wght' 100" }}>
+              info
+            </span>
           </div>
         </div>
 
@@ -101,7 +113,7 @@ export default function Dashboard() {
             <h3 style={{ fontSize: 18, fontWeight: 600 }}>
               Pending Invoices
             </h3>
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
+            <span style={{ fontSize: 15, color: '#6b7280', cursor: 'pointer', ':hover': { color: '#111827' } }}>
               View All
             </span>
           </div>
@@ -196,8 +208,7 @@ export default function Dashboard() {
               </span>
             </div>
 
-            <span style={{ fontSize: 13, color: '#6b7280' }}>
-              Schedules
+         <span style={{ fontSize: 15, color: '#6b7280', cursor: 'pointer', ':hover': { color: '#111827' } }}>
             </span>
           </div>
 
@@ -327,7 +338,7 @@ export default function Dashboard() {
                 justifyContent: 'center',
               }}
             >
-              📈
+              
             </div>
 
             <div>
@@ -356,7 +367,7 @@ export default function Dashboard() {
           margin: '0 auto',
         }}
       >
-        {['Home', 'Invoices', 'Loans', 'Profile'].map((item, i) => (
+        {navItems.map((item, i) => (
           <div
             key={i}
             style={{
@@ -365,12 +376,19 @@ export default function Dashboard() {
               alignItems: 'center',
               fontSize: 12,
               color: i === 0 ? '#111827' : '#6b7280',
+              cursor: 'pointer',
             }}
+            onClick={() => navigate(item.path)}
           >
             <span style={{ fontSize: 18 }}>
-              {i === 0 ? '🏠' : i === 1 ? '📄' : i === 2 ? '💳' : '👤'}
+              <span
+                className="material-symbols-outlined"
+                style={{ fontSize: i === 0 ? 25 : 20, lineHeight: 1, fontVariationSettings: "'wght' 100" }}
+              >
+                {item.icon}
+              </span>
             </span>
-            {item}
+            {item.label}
           </div>
         ))}
       </div>
