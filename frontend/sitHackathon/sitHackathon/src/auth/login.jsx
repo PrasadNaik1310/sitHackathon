@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../lib/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -10,7 +11,6 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     phoneNo: '',
     emailId: '',
-    otp: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -125,47 +125,20 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      if (loginMode === 'signin') {
-        const checkResponse = await fetch('/api/auth/check-number', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            number: formData.phoneNo.trim(),
-            loginMode: 'signin',
-          }),
-        });
-
-        const checkData = await checkResponse.json();
-
-        if (!checkResponse.ok || checkData?.exists === false) {
-          setError(checkData?.message || 'Mobile number not registered. Please sign up.');
-          return;
-        }
-      }
-
-      const endpoint = loginMode === 'signin' ? '/api/auth/signin' : '/api/auth/signup';
-
-      const authResponse = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phoneNo: formData.phoneNo.trim(),
-          emailId: formData.emailId.trim(),
-          otp: formData.otp.trim(),
-        }),
+      await authApi.sendOtp({
+        phone: formData.phoneNo.trim(),
       });
 
-      const authData = await authResponse.json().catch(() => ({}));
-
-      if (!authResponse.ok) {
-        setError(authData?.message || 'Authentication failed. Please try again.');
-        return;
-      }
-
-      setSuccessMessage(loginMode === 'signin' ? 'Login successful.' : 'Signup successful.');
-      navigate('/dashboard');
-    } catch {
-      setError('Unable to connect to server. Please try again.');
+      // Navigate to OTP page with form data
+      navigate('/otp-verify', {
+        state: {
+          phoneNo: formData.phoneNo.trim(),
+          emailId: formData.emailId.trim(),
+          loginMode: loginMode,
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to connect to server. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +150,7 @@ export default function LoginPage() {
   <div
     style={{
       minHeight: '100vh',
-      background: '#000000',
+      background: '#d1cfcfb8',
       display: 'flex',
       justifyContent: 'center',
       alignItems: 'center',
@@ -329,59 +302,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* OTP */}
-        <div style={{ marginBottom: 10 }}>
-          <label
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              letterSpacing: 0.5,
-            }}
-          >
-            ENTER 4-DIGIT OTP
-          </label>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-              gap: '10px',
-              marginTop: 10,
-              width: '100%',
-            }}
-          >
-            {[0, 1, 2, 3].map((index) => (
-              <input
-                key={index}
-                type="text"
-                maxLength={1}
-                value={formData.otp[index] || ''}
-                onChange={(e) => {
-                  const newOtp =
-                    formData.otp.substring(0, index) +
-                    e.target.value +
-                    formData.otp.substring(index + 1);
-                  onChangeField('otp', newOtp);
-                }}
-                disabled={isLoading}
-                style={{
-                  width: '90%',
-                  maxWidth: 52,
-                  minWidth: 0,
-                  height: 52,
-                  boxSizing: 'border-box',
-                  backgroundColor: '#ffffff',
-                  color: '#000000',
-                  textAlign: 'center',
-                  fontSize: 'clamp(14px, 3vw, 18px)',
-                  borderRadius: 10,
-                  border: '1px solid black',
-                  justifySelf: 'center',
-                }}
-              />
-            ))}
-          </div>
-        </div>
 
         {/* Errors */}
         {error && (
@@ -428,11 +349,7 @@ export default function LoginPage() {
             transition: 'transform 180ms ease, background-color 200ms ease',
           }}
         >
-          {isLoading
-            ? loginMode === 'signin'
-              ? 'Signing in...'
-              : 'Signing up...'
-            : 'Verify & Login'}
+          {isLoading ? 'Sending OTP...' : 'Send OTP'}
         </button>
 
         <p

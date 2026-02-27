@@ -1,7 +1,9 @@
 'use client';
 import { useNavigate } from 'react-router-dom';
+import { useMaterialIcons } from '../lib/hooks/useMaterialIcons';
 
 export default function EmiSchedule() {
+  useMaterialIcons();
   const navigate = useNavigate();
   const navItems = [
     { label: 'Home', icon: 'home', path: '/dashboard' },
@@ -14,7 +16,7 @@ export default function EmiSchedule() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#f3f4f6',
+        background: '#f0eaeae1',
         display: 'flex',
         justifyContent: 'center',
         fontFamily: 'system-ui, -apple-system, sans-serif',

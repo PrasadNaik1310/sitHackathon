@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMaterialIcons } from '../lib/hooks/useMaterialIcons';
 
 export default function LoanConfiguration() {
+  useMaterialIcons();
   const navigate = useNavigate();
   const [tenure, setTenure] = useState(9);
   const [agreed, setAgreed] = useState(false);
@@ -32,7 +34,7 @@ export default function LoanConfiguration() {
     <div
       style={{
         minHeight: '100vh',
-        background: '#f3f4f6',
+        background: '#f0eaeae1',
         display: 'flex',
         justifyContent: 'center',
         fontFamily: 'system-ui, -apple-system, sans-serif',
