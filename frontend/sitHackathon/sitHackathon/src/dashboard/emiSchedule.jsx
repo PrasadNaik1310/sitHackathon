@@ -1,16 +1,136 @@
 'use client';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMaterialIcons } from '../lib/hooks/useMaterialIcons';
+import { invoicesApi, loansApi, repaymentsApi } from '../lib/api';
 
 export default function EmiSchedule() {
   useMaterialIcons();
   const navigate = useNavigate();
+  const [loanData, setLoanData] = useState(null);
+  const [emiItems, setEmiItems] = useState([]);
+  const [loanId, setLoanId] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [payingEmiId, setPayingEmiId] = useState('');
+  const [bouncingEmiId, setBouncingEmiId] = useState('');
   const navItems = [
     { label: 'Home', icon: 'home', path: '/dashboard' },
-    { label: 'Invoices', icon: 'description', path: '/emiSchedule' },
+    { label: 'Invoices', icon: 'description', path: '/invoices' },
     { label: 'Loans', icon: 'credit_card', path: '/loan' },
     { label: 'Profile', icon: 'person', path: '/dashboard' },
   ];
+
+  const resolveEmis = (payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.emis)) return payload.emis;
+    return [];
+  };
+
+  const loadEmiData = async (targetLoanId) => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      let resolvedLoanId = targetLoanId || loanId || localStorage.getItem('selectedLoanId') || '';
+
+      if (!resolvedLoanId) {
+        const unpaidInvoices = await invoicesApi.listMyInvoices('UNPAID');
+        const invoiceId = unpaidInvoices?.[0]?.id;
+        if (invoiceId) {
+          const offersLoanFallback = localStorage.getItem('selectedLoanId');
+          resolvedLoanId = offersLoanFallback || '';
+        }
+      }
+
+      if (!resolvedLoanId) {
+        setError('No loan selected yet. Please sanction a loan first.');
+        return;
+      }
+
+      setLoanId(resolvedLoanId);
+
+      const [loanResponse, emisResponse] = await Promise.all([
+        loansApi.getLoan(resolvedLoanId),
+        repaymentsApi.listEmis(resolvedLoanId),
+      ]);
+
+      setLoanData(loanResponse || null);
+      setEmiItems(resolveEmis(emisResponse));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load loan repayment details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmiData();
+  }, []);
+
+  const paidCount = useMemo(
+    () => emiItems.filter((item) => (item?.status || '').toUpperCase() === 'PAID').length,
+    [emiItems],
+  );
+  const totalCount = emiItems.length;
+  const progressPercent = totalCount ? Math.round((paidCount / totalCount) * 100) : 0;
+
+  const formatCurrency = (value) =>
+    new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(value || 0);
+
+  const formatDate = (dateValue) => {
+    if (!dateValue) return '-';
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const mapEmiStatus = (status) => {
+    const normalized = (status || '').toUpperCase();
+    if (normalized === 'PAID') return 'Paid';
+    if (normalized === 'BOUNCED') return 'Bounced';
+    return 'Scheduled';
+  };
+
+  const handlePayEmi = async (emiId) => {
+    if (!emiId) return;
+
+    setPayingEmiId(emiId);
+    setError('');
+
+    try {
+      await repaymentsApi.payEmi(emiId);
+      await loadEmiData(loanId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to retry EMI payment.');
+    } finally {
+      setPayingEmiId('');
+    }
+  };
+
+  const handleBounceEmi = async (emiId) => {
+    if (!emiId) return;
+
+    setBouncingEmiId(emiId);
+    setError('');
+
+    try {
+      await repaymentsApi.bounceEmi(emiId);
+      await loadEmiData(loanId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to mark EMI as bounced.');
+    } finally {
+      setBouncingEmiId('');
+    }
+  };
 
   return (
     <div
@@ -52,12 +172,18 @@ export default function EmiSchedule() {
         {/* Loan Info */}
         <div style={{ marginBottom: 20 }}>
           <h3 style={{ fontSize: 18, fontWeight: 600 }}>
-            LN-2023-8841
+            {loanData?.id || loanData?.loan_id || 'Loan'}
           </h3>
           <p style={{ fontSize: 13, color: '#22c55e' }}>
-            Active - On Track
+            {loanData?.status ? String(loanData.status).replaceAll('_', ' ') : 'Active - On Track'}
           </p>
         </div>
+
+        {(isLoading || error) && (
+          <p style={{ fontSize: 12, color: error ? '#dc2626' : '#6b7280', marginBottom: 12 }}>
+            {isLoading ? 'Loading repayment details...' : error}
+          </p>
+        )}
 
         {/* Summary Card */}
         <div
@@ -77,7 +203,7 @@ export default function EmiSchedule() {
               width: 90,
               height: 90,
               borderRadius: '50%',
-              background: 'conic-gradient(#22c55e 270deg, #e5e7eb 0deg)',
+              background: `conic-gradient(#22c55e ${Math.round((progressPercent / 100) * 360)}deg, #e5e7eb 0deg)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -96,7 +222,7 @@ export default function EmiSchedule() {
                 fontSize: 14,
               }}
             >
-              <strong>75%</strong>
+              <strong>{progressPercent}%</strong>
               <span style={{ fontSize: 11, color: '#6b7280' }}>
                 PAID
               </span>
@@ -115,7 +241,7 @@ export default function EmiSchedule() {
             >
               <span>Total Repaid</span>
               <strong style={{ color: '#22c55e' }}>
-                ₹1,125,000
+                {formatCurrency(loanData?.amount_repaid)}
               </strong>
             </div>
 
@@ -128,7 +254,7 @@ export default function EmiSchedule() {
               }}
             >
               <span>Outstanding</span>
-              <strong>₹375,000</strong>
+              <strong>{formatCurrency(loanData?.outstanding_amount)}</strong>
             </div>
 
             <span
@@ -165,7 +291,7 @@ export default function EmiSchedule() {
             <p style={{ fontSize: 12, color: '#6b7280' }}>
               RATE (ROI)
             </p>
-            <strong>14.5% p.a.</strong>
+            <strong>{loanData?.interest_rate ? `${loanData.interest_rate}% p.a.` : '--'}</strong>
           </div>
 
           <div
@@ -180,7 +306,7 @@ export default function EmiSchedule() {
             <p style={{ fontSize: 12, color: '#6b7280' }}>
               TENURE
             </p>
-            <strong>12 Months</strong>
+            <strong>{loanData?.tenure_months ? `${loanData.tenure_months} Months` : '--'}</strong>
           </div>
         </div>
 
@@ -238,40 +364,27 @@ export default function EmiSchedule() {
               EMI SCHEDULE
             </h3>
             <span style={{ fontSize: 12, color: '#6b7280' }}>
-              9 of 12 Paid
+              {paidCount} of {totalCount || '--'} Paid
             </span>
           </div>
 
-          {/* EMI Item - Scheduled */}
-          <EmiCard
-            month="November 2023"
-            amount="₹125,000"
-            date="05 Nov 2023"
-            status="Scheduled"
-          />
+          {!isLoading && emiItems.length === 0 && (
+            <p style={{ fontSize: 13, color: '#6b7280' }}>No EMI records found.</p>
+          )}
 
-          {/* EMI Item - Bounced */}
-          <EmiCard
-            month="October 2023"
-            amount="₹125,000"
-            date="05 Oct 2023"
-            status="Bounced"
-          />
-
-          {/* EMI Item - Paid */}
-          <EmiCard
-            month="September 2023"
-            amount="₹125,000"
-            date="05 Sep 2023"
-            status="Paid"
-          />
-
-          <EmiCard
-            month="August 2023"
-            amount="₹125,000"
-            date="05 Aug 2023"
-            status="Paid"
-          />
+          {emiItems.map((emi, idx) => (
+            <EmiCard
+              key={emi.id || emi.emi_id || idx}
+              month={formatDate(emi?.due_date)}
+              amount={formatCurrency(emi?.amount)}
+              date={formatDate(emi?.due_date)}
+              status={mapEmiStatus(emi?.status)}
+              onRetry={() => handlePayEmi(emi.id || emi.emi_id || '')}
+              retryDisabled={payingEmiId === (emi.id || emi.emi_id)}
+              onBounce={() => handleBounceEmi(emi.id || emi.emi_id || '')}
+              bounceDisabled={bouncingEmiId === (emi.id || emi.emi_id)}
+            />
+          ))}
 
           <p
             style={{
@@ -333,9 +446,10 @@ export default function EmiSchedule() {
 }
 
 /* EMI CARD COMPONENT */
-function EmiCard({ month, amount, date, status }) {
+function EmiCard({ month, amount, date, status, onRetry, retryDisabled = false, onBounce, bounceDisabled = false }) {
   const isBounced = status === 'Bounced';
   const isPaid = status === 'Paid';
+  const isScheduled = status === 'Scheduled';
 
   return (
     <div
@@ -387,6 +501,8 @@ function EmiCard({ month, amount, date, status }) {
 
       {isBounced && (
         <button
+          onClick={onRetry}
+          disabled={retryDisabled}
           style={{
             marginTop: 10,
             background: '#ef4444',
@@ -395,10 +511,32 @@ function EmiCard({ month, amount, date, status }) {
             padding: '8px 12px',
             borderRadius: 10,
             fontSize: 12,
-            cursor: 'pointer',
+            cursor: retryDisabled ? 'not-allowed' : 'pointer',
+            opacity: retryDisabled ? 0.8 : 1,
           }}
         >
-          Retry Payment
+          {retryDisabled ? 'Retrying...' : 'Retry Payment'}
+        </button>
+      )}
+
+      {isScheduled && (
+        <button
+          onClick={onBounce}
+          disabled={bounceDisabled}
+          style={{
+            marginTop: 10,
+            marginLeft: isBounced ? 8 : 0,
+            background: '#f59e0b',
+            color: '#ffffff',
+            border: 'none',
+            padding: '8px 12px',
+            borderRadius: 10,
+            fontSize: 12,
+            cursor: bounceDisabled ? 'not-allowed' : 'pointer',
+            opacity: bounceDisabled ? 0.8 : 1,
+          }}
+        >
+          {bounceDisabled ? 'Updating...' : 'Mark Bounced'}
         </button>
       )}
     </div>

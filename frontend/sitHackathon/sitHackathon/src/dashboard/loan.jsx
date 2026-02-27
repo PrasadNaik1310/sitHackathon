@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMaterialIcons } from '../lib/hooks/useMaterialIcons';
+import { invoicesApi, loansApi, offersApi } from '../lib/api';
 
 export default function LoanConfiguration() {
   useMaterialIcons();
@@ -11,23 +12,108 @@ export default function LoanConfiguration() {
   const [agreed, setAgreed] = useState(false);
   const [mode, setMode] = useState('unsecured');
   const [submitState, setSubmitState] = useState('idle');
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const [selectedOfferId, setSelectedOfferId] = useState('');
+  const [isOfferLoading, setIsOfferLoading] = useState(true);
+  const [offerError, setOfferError] = useState('');
+  const [sanctionError, setSanctionError] = useState('');
   const navItems = [
     { label: 'Home', icon: 'home', path: '/dashboard' },
-    { label: 'Invoices', icon: 'description', path: '/emiSchedule' },
+    { label: 'Invoices', icon: 'description', path: '/invoices' },
     { label: 'Loans', icon: 'credit_card', path: '/loan' },
     { label: 'Profile', icon: 'person', path: '/dashboard' },
   ];
 
-  const handleAcceptDisburse = () => {
-    if (!agreed || submitState !== 'idle') {
+  useEffect(() => {
+    const getOfferId = (payload) => {
+      if (!payload) return '';
+      if (Array.isArray(payload)) {
+        return payload[0]?.id || payload[0]?.offer_id || '';
+      }
+
+      if (Array.isArray(payload?.offers)) {
+        return payload.offers[0]?.id || payload.offers[0]?.offer_id || '';
+      }
+
+      return payload?.id || payload?.offer_id || '';
+    };
+
+    const loadOfferContext = async () => {
+      setIsOfferLoading(true);
+      setOfferError('');
+
+      try {
+        const storedInvoiceId = localStorage.getItem('selectedInvoiceId');
+        const storedOfferId = localStorage.getItem('selectedOfferId');
+
+        let invoiceId = storedInvoiceId || '';
+
+        if (!invoiceId) {
+          const unpaidInvoices = await invoicesApi.listMyInvoices('UNPAID');
+          invoiceId = unpaidInvoices?.[0]?.id || '';
+        }
+
+        if (!invoiceId) {
+          setOfferError('No invoice found for offer lookup. Generate an offer from dashboard first.');
+          return;
+        }
+
+        setSelectedInvoiceId(invoiceId);
+
+        if (storedOfferId) {
+          setSelectedOfferId(storedOfferId);
+          return;
+        }
+
+        const offers = await offersApi.listForInvoice(invoiceId);
+        const parsedOfferId = getOfferId(offers);
+
+        if (!parsedOfferId) {
+          setOfferError('No available offer found for selected invoice. Generate offer first.');
+          return;
+        }
+
+        setSelectedOfferId(parsedOfferId);
+      } catch (err) {
+        setOfferError(err instanceof Error ? err.message : 'Unable to load loan offer context.');
+      } finally {
+        setIsOfferLoading(false);
+      }
+    };
+
+    loadOfferContext();
+  }, []);
+
+  const handleAcceptDisburse = async () => {
+    if (!agreed || submitState !== 'idle' || !selectedOfferId) {
+      if (!selectedOfferId) {
+        setSanctionError('Offer not ready. Please generate/select an offer first.');
+      }
       return;
     }
 
+    setSanctionError('');
     setSubmitState('loading');
 
-    setTimeout(() => {
+    try {
+      const sanctionData = await loansApi.sanction({
+        offer_id: selectedOfferId,
+        asset_description: mode === 'secured' ? 'Business collateral' : null,
+        asset_value: mode === 'secured' ? 250000 : null,
+      });
+
+      const sanctionedLoanId = sanctionData?.id || sanctionData?.loan_id;
+      if (sanctionedLoanId) {
+        localStorage.setItem('selectedLoanId', sanctionedLoanId);
+      }
+
+      localStorage.removeItem('selectedOfferId');
+
       setSubmitState('success');
-    }, 2200);
+    } catch (err) {
+      setSubmitState('idle');
+      setSanctionError(err instanceof Error ? err.message : 'Sanction failed. Please try again.');
+    }
   };
 
   return (
@@ -133,6 +219,16 @@ export default function LoanConfiguration() {
             boxShadow: '0 5px 15px rgba(0,0,0,0.05)',
           }}
         >
+          {(isOfferLoading || selectedInvoiceId || selectedOfferId || offerError) && (
+            <p style={{ fontSize: 12, color: offerError ? '#dc2626' : '#6b7280', marginTop: 0, marginBottom: 10 }}>
+              {isOfferLoading
+                ? 'Loading offer context...'
+                : offerError
+                  ? offerError
+                  : `Invoice: ${selectedInvoiceId.slice(0, 8)}... | Offer: ${selectedOfferId.slice(0, 8)}...`}
+            </p>
+          )}
+
           <div
             style={{
               display: 'flex',
@@ -305,7 +401,7 @@ export default function LoanConfiguration() {
 
         {/* Accept Button */}
         <button 
-          disabled={!agreed || submitState === 'loading' || submitState === 'success'}
+          disabled={!agreed || submitState === 'loading' || submitState === 'success' || !selectedOfferId}
           onClick={handleAcceptDisburse}
           style={{
             width: submitState === 'loading' || submitState === 'success' ? 56 : '100%',
@@ -324,7 +420,7 @@ export default function LoanConfiguration() {
             fontWeight: 600,
             fontSize: 15,
             cursor:
-              !agreed || submitState === 'loading' || submitState === 'success'
+              !agreed || submitState === 'loading' || submitState === 'success' || !selectedOfferId
                 ? 'not-allowed'
                 : 'pointer',
             transition: 'all 0.25s ease',
@@ -346,6 +442,20 @@ export default function LoanConfiguration() {
             }}
           >
             Disbursement submitted successfully. Funds will be processed shortly.
+          </p>
+        )}
+
+        {sanctionError && (
+          <p
+            style={{
+              fontSize: 12,
+              color: '#dc2626',
+              marginTop: 10,
+              textAlign: 'center',
+              fontWeight: 600,
+            }}
+          >
+            {sanctionError}
           </p>
         )}
 
