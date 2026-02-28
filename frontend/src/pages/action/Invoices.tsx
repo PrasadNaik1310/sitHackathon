@@ -60,42 +60,42 @@ export default function Invoices() {
     };
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 relative overflow-hidden font-body animate-in fade-in duration-1000 pb-24">
-            {/* Decorative Silent Blobs */}
-            <div className="bg-blob blob-1 opacity-40"></div>
-            <div className="bg-blob blob-2 opacity-20"></div>
+        <div className="flex flex-col min-h-screen bg-transparent relative overflow-hidden font-body animate-in fade-in duration-1000 pb-32">
+            {/* Ambient Background Blobs */}
+            <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[40%] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+            <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[40%] bg-slate-900/20 rounded-full blur-[120px] pointer-events-none"></div>
 
             {/* Header Area */}
-            <div className="px-8 pt-12 pb-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-md bg-slate-50/50 border-b border-slate-100/50">
+            <div className="px-8 pt-12 pb-8 flex items-center justify-between sticky top-0 z-30 backdrop-blur-3xl bg-black/20 border-b border-white/5">
                 <div className="flex items-center gap-4">
-                    <button onClick={() => navigate(-1)} className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-slate-400 border border-slate-100/50 active:scale-95 transition-all">
+                    <button onClick={() => navigate(-1)} className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 active:scale-95 transition-all shadow-2xl">
                         <ChevronLeft size={22} />
                     </button>
                     <div>
-                        <h1 className="text-2xl font-black text-slate-800 tracking-tighter font-heading leading-none">Invoices</h1>
-                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-[0.3em] mt-2 opacity-60">Treasury Management</p>
+                        <h1 className="text-2xl font-black text-white tracking-tighter font-heading leading-none uppercase">Invoices</h1>
+                        <p className="text-emerald-500/50 text-[10px] font-black uppercase tracking-[0.3em] mt-2">Active Receivables</p>
                     </div>
                 </div>
-                <div className="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center border border-slate-100/50">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-slate-500 border border-white/5">
                     <FileText size={20} />
                 </div>
             </div>
 
-            <div className="px-8 mt-10">
+            <div className="px-8 mt-10 relative z-10">
                 <div className="mb-12">
-                    <h2 className="text-3xl font-black text-slate-800 tracking-tighter leading-tight font-heading mb-3">Convert Assets to <span className="text-emerald-800">Liquidity</span></h2>
-                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.4em] opacity-50">Select active bills to initiate discounting</p>
+                    <h2 className="text-3xl font-black text-white tracking-tighter leading-tight font-heading mb-3">Convert Assets to <span className="text-emerald-500">Liquidity</span></h2>
+                    <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.4em]">Select active bills to initiate discounting</p>
                 </div>
 
                 {/* Silent Tabs */}
-                <div className="flex bg-white p-2 rounded-[2.5rem] mb-12 border border-slate-50 shadow-sm shadow-slate-900/5">
+                <div className="flex bg-white/5 backdrop-blur-xl p-2 rounded-[2.5rem] mb-12 border border-white/5 shadow-3xl">
                     {(['all', 'pending', 'discounted'] as const).map((t) => (
                         <button
                             key={t}
                             onClick={() => setActiveTab(t)}
                             className={`flex-1 py-4 text-[10px] font-black uppercase tracking-[0.3em] rounded-[1.8rem] transition-all ${activeTab === t
-                                ? 'bg-slate-800 text-white shadow-xl shadow-slate-900/20'
-                                : 'text-slate-400 hover:text-slate-600'
+                                ? 'bg-emerald-800 text-white shadow-xl shadow-emerald-900/20'
+                                : 'text-slate-500 hover:text-slate-300'
                                 }`}
                         >
                             {t}
@@ -108,52 +108,52 @@ export default function Invoices() {
                     {loading ? (
                         <div className="py-24 flex justify-center"><GlassLoader /></div>
                     ) : filteredInvoices.length === 0 ? (
-                        <div className="py-24 text-center bg-white rounded-[3rem] border border-slate-50 shadow-sm">
-                            <div className="w-24 h-24 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-slate-100 shadow-inner">
-                                <FileText size={32} className="text-slate-300" />
+                        <div className="py-24 text-center bg-white/[0.02] rounded-[3rem] border border-white/5 shadow-2xl">
+                            <div className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-8 border border-white/5 shadow-inner">
+                                <FileText size={32} className="text-slate-700" />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 mb-2 font-heading tracking-tight">No Bills Found</h3>
-                            <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest max-w-[200px] mx-auto opacity-50">Your discounting activity will appear here.</p>
+                            <h3 className="text-xl font-black text-white mb-2 font-heading tracking-tight">No Bills Found</h3>
+                            <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest max-w-[200px] mx-auto">Your discounting activity will appear here.</p>
                         </div>
                     ) : (
                         filteredInvoices.map((invoice) => (
                             <div
                                 key={invoice.id}
                                 onClick={() => handleInvoiceClick(invoice.id, invoice.status)}
-                                className="bg-white rounded-[2.8rem] p-8 border border-slate-50 shadow-sm hover:shadow-2xl hover:shadow-slate-900/5 transition-all duration-500 cursor-pointer group animate-in zoom-in-95 duration-300"
+                                className="bg-white/[0.03] backdrop-blur-xl rounded-[2.8rem] p-8 border border-white/5 shadow-2xl hover:bg-white/[0.05] transition-all duration-500 cursor-pointer group animate-in zoom-in-95 duration-300"
                             >
                                 <div className="flex justify-between items-start mb-8">
                                     <div className="flex items-center gap-5">
-                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-colors ${invoice.status === 'PENDING' || invoice.status === 'OVERDUE' ? 'bg-emerald-50 text-emerald-800 border-emerald-100/50' : 'bg-slate-50 text-slate-300 border-slate-100/50'}`}>
+                                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-inner transition-colors ${invoice.status === 'PENDING' || invoice.status === 'OVERDUE' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-white/5 text-slate-600 border-white/5'}`}>
                                             <FileText size={24} />
                                         </div>
                                         <div>
-                                            <h4 className="font-black text-slate-800 text-lg tracking-tight font-heading leading-tight mb-1">Ref #{invoice.invoice_number}</h4>
-                                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest opacity-60">{invoice.counterparty_name}</p>
+                                            <h4 className="font-black text-white text-lg tracking-tight font-heading leading-tight mb-1">Ref #{invoice.invoice_number}</h4>
+                                            <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">{invoice.counterparty_name}</p>
                                         </div>
                                     </div>
-                                    <div className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] border ${invoice.status === 'PAID' || invoice.status === 'DISCOUNTED'
-                                        ? 'bg-slate-50 text-slate-400 border-slate-100'
-                                        : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                                    <div className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-[0.2em] border ${invoice.status === 'PAID' || invoice.status === 'DISCOUNTED'
+                                        ? 'bg-white/5 text-slate-500 border-white/5'
+                                        : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
                                         }`}>
                                         {invoice.status}
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-end pt-8 border-t border-slate-50">
+                                <div className="flex justify-between items-end pt-8 border-t border-white/5">
                                     <div className="space-y-1.5">
-                                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest opacity-40">Invoice Amount</p>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter">₹{invoice.amount.toLocaleString('en-IN')}</p>
+                                        <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest leading-none">Invoice Amount</p>
+                                        <p className="text-3xl font-black text-white tracking-tighter">₹{invoice.amount.toLocaleString('en-IN')}</p>
                                     </div>
                                     <div className="flex flex-col items-end gap-3 text-right">
                                         {(invoice.status === 'PENDING' || invoice.status === 'OVERDUE') && (
-                                            <span className="flex items-center gap-2 text-emerald-800 text-[10px] font-black uppercase tracking-widest group-hover:gap-3 transition-all">
+                                            <span className="flex items-center gap-2 text-emerald-500 text-[10px] font-black uppercase tracking-widest group-hover:gap-4 transition-all">
                                                 Buy Offers <ArrowRight size={14} strokeWidth={4} />
                                             </span>
                                         )}
                                         <div className="flex flex-col items-end">
-                                            <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest opacity-40">Maturity Date</p>
-                                            <p className="text-[11px] font-black text-slate-600 tracking-tight">{new Date(invoice.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                            <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest leading-none mb-1">Due Date</p>
+                                            <p className="text-[11px] font-black text-slate-400 tracking-tight">{new Date(invoice.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                                         </div>
                                     </div>
                                 </div>

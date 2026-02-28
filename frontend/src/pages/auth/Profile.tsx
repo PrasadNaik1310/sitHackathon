@@ -36,8 +36,8 @@ export default function Profile() {
             </div>
 
             {/* User Info Card */}
-            <div className="px-6">
-                <div className="glass-card p-8 flex flex-col items-center bg-white shadow-xl shadow-emerald-900/5 border-emerald-50/50">
+            <div className="px-6 rounded-[2rem]">
+                <div className="glass-card p-8 flex flex-col items-center bg-white shadow-xl shadow-emerald-900/5 border-emerald-50/50 border-radius-2xl rounded-[2rem]">
                     <div className="w-24 h-24 bg-emerald-50 rounded-[2rem] flex items-center justify-center text-primary-color mb-6 shadow-inner border border-emerald-100/50 relative">
                         <User size={40} className="text-emerald-600" />
                         <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-emerald-500 rounded-full border-4 border-white flex items-center justify-center shadow-lg">
