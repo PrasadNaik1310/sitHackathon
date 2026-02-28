@@ -40,6 +40,80 @@ async def sanction(
     }
 
 
+@router.get("/user/my")
+async def get_my_loans(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.business import BusinessProfile
+    from app.models.credit import Offer
+    from app.models.invoice import Invoice
+    
+    bp_result = await db.execute(select(BusinessProfile).where(BusinessProfile.user_id == current_user.id))
+    profile = bp_result.scalar_one_or_none()
+    if not profile:
+        return {"loans": []}
+        
+    result = await db.execute(
+        select(Loan)
+        .join(Offer, Offer.id == Loan.offer_id)
+        .join(Invoice, Invoice.id == Offer.invoice_id)
+        .where(Invoice.business_id == profile.id)
+        .order_by(Loan.created_at.desc())
+    )
+    loans = result.scalars().all()
+    return {
+        "loans": [
+            {
+                "id": str(loan.id),
+                "offer_id": str(loan.offer_id),
+                "amount": float(loan.principal),
+                "status": loan.status,
+                "created_at": loan.created_at.isoformat(),
+            }
+            for loan in loans
+        ]
+    }
+
+@router.get("/user/repayments")
+async def get_my_repayments(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.business import BusinessProfile
+    from app.models.credit import Offer, EMI
+    from app.models.invoice import Invoice
+    from sqlalchemy.orm import joinedload
+    
+    bp_result = await db.execute(select(BusinessProfile).where(BusinessProfile.user_id == current_user.id))
+    profile = bp_result.scalar_one_or_none()
+    if not profile:
+        return {"repayments": []}
+        
+    result = await db.execute(
+        select(EMI)
+        .join(Loan, Loan.id == EMI.loan_id)
+        .join(Offer, Offer.id == Loan.offer_id)
+        .join(Invoice, Invoice.id == Offer.invoice_id)
+        .where(Invoice.business_id == profile.id)
+        .options(joinedload(EMI.loan))
+        .order_by(EMI.due_date.desc())
+    )
+    emis = result.scalars().all()
+    
+    return {
+        "repayments": [
+            {
+                "id": str(emi.id),
+                "loan_id": str(emi.loan_id),
+                "amount": float(emi.amount),
+                "due_date": emi.due_date.isoformat(),
+                "status": emi.status,
+            }
+            for emi in emis
+        ]
+    }
+
 @router.get("/{loan_id}")
 async def get_loan(
     loan_id: uuid.UUID,

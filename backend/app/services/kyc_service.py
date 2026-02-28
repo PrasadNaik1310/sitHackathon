@@ -30,14 +30,20 @@ async def run_kyc_and_onboard(
     gst_number: str,
 ) -> BusinessProfile:
     # Check for duplicate GST
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(BusinessProfile).where(BusinessProfile.gst_number == gst_number)
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Business with this GST number already registered",
-        )
+    existing = existing_result.scalar_one_or_none()
+    if existing:
+        if existing.user_id == user.id:
+            # The current user is already onboarded with this GST. Returns profile early.
+            logger.info("kyc.onboarding_skipped.already_exists", user_id=str(user.id), gst=gst_number)
+            return existing
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Business with this GST number already registered to another user",
+            )
 
     # Step 1: Government verifications
     try:

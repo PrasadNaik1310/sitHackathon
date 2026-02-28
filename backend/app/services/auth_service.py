@@ -102,10 +102,15 @@ async def verify_otp_and_login(
     # OTP valid — fetch or create user
     user_result = await db.execute(select(User).where(User.phone == phone))
     user = user_result.scalar_one_or_none()
+    is_onboarded = False
     if not user:
         user = User(phone=phone, role=role, is_verified=True)
         db.add(user)
         await db.flush()
+    else:
+        from app.models.business import BusinessProfile
+        profile_result = await db.execute(select(BusinessProfile).where(BusinessProfile.user_id == user.id))
+        is_onboarded = profile_result.scalars().first() is not None
 
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is frozen")
@@ -134,6 +139,7 @@ async def verify_otp_and_login(
         "token_type": "bearer",
         "user_id": str(user.id),
         "role": user.role,
+        "is_onboarded": is_onboarded,
     }
 
 

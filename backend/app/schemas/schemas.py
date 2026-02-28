@@ -72,6 +72,23 @@ class KYCResponse(BaseModel):
 
 # ── Business / Invoice ────────────────────────────────────────────────────────
 
+class ActivityItem(BaseModel):
+    id: str
+    type: str
+    title: str
+    subtitle: str
+    amount: float
+    date: datetime
+
+class DashboardResponse(BaseModel):
+    available_limit: float
+    credit_score: float
+    risk_grade: RiskGrade
+    active_loans_total: float
+    next_emi_amount: Optional[float]
+    next_emi_date: Optional[datetime]
+    recent_activity: List[ActivityItem]
+
 class BusinessProfileResponse(BaseModel):
     id: str
     user_id: str

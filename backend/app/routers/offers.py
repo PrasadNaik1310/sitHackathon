@@ -41,6 +41,44 @@ async def generate_offers(
     }
 
 
+@router.get("/user/my")
+async def get_my_offers(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.business import BusinessProfile
+    from app.models.invoice import Invoice
+    
+    bp_result = await db.execute(select(BusinessProfile).where(BusinessProfile.user_id == current_user.id))
+    profile = bp_result.scalar_one_or_none()
+    if not profile:
+        return {"offers": []}
+        
+    # We load invoice relation to calculate amount
+    from sqlalchemy.orm import joinedload
+    result = await db.execute(
+        select(Offer)
+        .options(joinedload(Offer.invoice))
+        .join(Invoice, Invoice.id == Offer.invoice_id)
+        .where(Invoice.business_id == profile.id)
+        .order_by(Offer.created_at.desc())
+    )
+    offers = result.scalars().all()
+    return {
+        "offers": [
+            {
+                "id": str(o.id),
+                "invoice_id": str(o.invoice_id),
+                "amount": float(o.invoice.amount) * (float(o.percentage) / 100),
+                "interest_rate": o.interest_rate,
+                "tenure_days": o.tenure_months * 30, # Assuming approx 30 days per month
+                "platform_fee": 1500,
+                "status": o.status,
+            }
+            for o in offers
+        ]
+    }
+
 @router.get("/invoice/{invoice_id}")
 async def list_offers_for_invoice(
     invoice_id: uuid.UUID,
