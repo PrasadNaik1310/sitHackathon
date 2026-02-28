@@ -1,0 +1,43 @@
+# Render Blueprint for GST Credit Lifecycle Backend
+services:
+  - type: web
+    name: gst-credit-backend
+    env: docker
+    dockerContext: .
+    dockerfilePath: Dockerfile
+    plan: free # Change to 'starter' or higher for production
+    region: ohio # Change to your preferred region
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Set in Render dashboard (e.g., Supabase or Render Postgres)
+      - key: SYNC_DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: PORT
+        value: "8000"
+      # Weights
+      - key: EXTERNAL_SCORE_WEIGHT
+        value: "0.6"
+      - key: INTERNAL_SCORE_WEIGHT
+        value: "0.4"
+      # Exposure Caps
+      - key: PER_USER_EXPOSURE_CAP
+        value: "10000000"
+      - key: PER_GST_EXPOSURE_CAP
+        value: "25000000"
+      - key: PORTFOLIO_CAP
+        value: "500000000"
+
+    autoDeploy: true
