@@ -1,19 +1,77 @@
-# React + TypeScript + Vite
+# GST Banking Credit Lifecycle — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Mobile-first React + TypeScript web application for the GST Banking Credit Lifecycle System. Provides borrowers with a complete interface to manage KYC onboarding, invoice submissions, loan offers, and EMI repayments.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** — UI framework
+- **TypeScript 5** — Type-safe JavaScript
+- **Vite 7** — Fast build tool with HMR
+- **Tailwind CSS 4** — Utility-first styling
+- **React Router DOM 7** — Client-side routing
+- **Axios** — HTTP client for API communication
+- **Framer Motion** — Animations
+- **Lucide React** — Icon library
 
-## React Compiler
+## Quick Start
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev
+```
 
-## Expanding the ESLint configuration
+App runs at `http://localhost:5173`. Requires the backend API to be running at `http://localhost:8000`.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Available Scripts
+
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+```
+
+## Pages
+
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page |
+| `/how-to-use` | Step-by-step tutorial |
+| `/about` | About the project |
+| `/login` | OTP-based authentication |
+| `/onboarding` | KYC form (Aadhaar, PAN, GST) |
+| `/app/dashboard` | Credit score overview and stats |
+| `/app/invoices` | Invoice list and upload |
+| `/app/loans` | Loan offers and sanction flow |
+| `/app/repayments` | EMI schedule and payment |
+| `/app/credit-score` | Detailed credit score breakdown |
+| `/app/profile` | User profile |
+
+## Project Structure
+
+```
+src/
+├── pages/          # Route-level page components
+│   ├── auth/       # Login, Profile
+│   ├── onboarding/ # KYC onboarding
+│   ├── home/       # Dashboard
+│   ├── action/     # Invoices, Repayments
+│   └── credit/     # Loans, Credit Score
+├── services/       # Axios-based API client services
+├── layouts/        # MobileLayout (bottom nav + responsive grid)
+├── components/     # Reusable UI components
+├── context/        # Global app state (AppContext)
+├── App.tsx         # Route configuration
+└── main.tsx        # React entry point
+```
+
+## Deployment
+
+The frontend is configured for deployment on Vercel (`vercel.json`). All routes redirect to `index.html` for client-side routing support.
+
+## ESLint Configuration
+
+For production applications, you can expand the ESLint config to enable type-aware lint rules:
 
 ```js
 export default defineConfig([
